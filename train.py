@@ -18,7 +18,7 @@ from pl_model import EdgeAttentionModel
 
 device = torch.device(
     "cuda:0") if torch.cuda.is_available() else torch.device("cpu")
-CHECKPOINT_PATH = './model_checkpoints'
+CHECKPOINT_PATH = './test_model_checkpoints'
 
 
 class VisulizationCallback(pl.Callback):
@@ -35,8 +35,8 @@ class VisulizationCallback(pl.Callback):
             with torch.no_grad():
                 pl_module.eval()
                 reconst_depth, reconst_edges = pl_module(self.input)
+                reconst_edges = torch.sigmoid(reconst_depth)
                 pl_module.train()
-
             # RGB reconstructions
             mask = self.input['mask']
             depth = self.input['depth']
@@ -75,10 +75,10 @@ class VisulizationCallback(pl.Callback):
 def train(hyper_params, train_loader, val_loader, test_loader, train_set, val_set):
     conv = 'Gated' if hyper_params['gated'] else ''
 
-    trainer = pl.Trainer(default_root_dir=os.path.join(CHECKPOINT_PATH, f"{conv}{hyper_params['model name']}_epochs{hyper_params['epochs']}"),
+    trainer = pl.Trainer(default_root_dir=os.path.join(CHECKPOINT_PATH, f"{conv}{hyper_params['model name']}_epochs{hyper_params['epochs']}_batch{hyper_params['batch size']}_lr{hyper_params['lr']}"),
                          gpus=1 if str(device).startswith("cuda") else 0,
                          max_epochs=hyper_params['epochs'],
-                         log_every_n_steps=5,
+                         log_every_n_steps=1,
                          callbacks=[ModelCheckpoint(save_weights_only=True, mode="min", monitor="total_val_loss"),
                                     VisulizationCallback(get_images(
                                         train_set, 8, device), 'train', every_n_epochs=1),
@@ -88,7 +88,7 @@ def train(hyper_params, train_loader, val_loader, test_loader, train_set, val_se
     # Optional logging argument that we don't need
     trainer.logger._default_hp_metric = None
 
-    model = EdgeAttentionModel(gated=hyper_params['gated'])
+    model = EdgeAttentionModel(hyper_params)
 
     trainer.fit(model, train_loader, val_loader)
 
@@ -118,13 +118,13 @@ def run_experiment(hyper_params):
     # torch.backends.cudnn.determinstic = True
     # torch.backends.cudnn.benchmark = False
 
-    train_set = InpaintDataset(split = 'train')
+    train_set = InpaintDataset(split = 'train', samples=hyper_params['samples'])
     print('N datapoints train set:', len(train_set))
 
-    val_set = InpaintDataset(split = 'val')
+    val_set = InpaintDataset(split = 'val', samples=hyper_params['samples'])
     print('N datapoints validation set:', len(val_set))
 
-    test_set = InpaintDataset(split = 'test')
+    test_set = InpaintDataset(split = 'test', samples=hyper_params['samples'])
     print('N datapoints test set:', len(test_set))
 
     train_loader = DataLoader(train_set, batch_size=hyper_params['batch size'], shuffle=True,
@@ -141,20 +141,25 @@ def run_experiment(hyper_params):
     return model, result
 
 if __name__ == '__main__':
-    import sys
-    args = sys.argv
-    if (len(args) > 2):
-        DEF_ENC = int(args[1])
-        USE_EDG = int(args[2])
-    else:
-        DEF_ENC = True
-        USE_EDG = True
+    # command line arguments
+    # import sys
+    # args = sys.argv
+    # if (len(args) > 2):
+    #     DEF_ENC = int(args[1])
+    #     USE_EDG = int(args[2])
+    # else:
+    #     DEF_ENC = True
+    #     USE_EDG = True
 
     hyper_params = {
-        'model name': 'posweight20EdgeAttention',
+        'model name': '2DbcelossSmallerDecoderEdgeAttention',
         'gated': False,
-        'batch size': 2,
-        'epochs': 5
+        'batch size': 4,
+        'epochs': 50,
+        'samples': 200,
+        'lr': 1e-4,
+        'lambda edge': 0.5,
+        'lambda depth': 1
     }
 
     # train

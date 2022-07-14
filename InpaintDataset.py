@@ -12,11 +12,16 @@ class InpaintDataset(Dataset):
         self,
         data_folder='/home/hannah/Documents/Thesis/data/preprocessed_structured3D',
         # data_folder = '/project/pjsminha/data/preprocessed_structured3D',
-        split = 'train'
+        split = 'train',
+        samples=16
     ):
         self.data_folder = data_folder
         self.split = split
         self.inds = np.loadtxt(f'{data_folder}/{split}_inds.txt', dtype=str)
+        if split == 'train':
+            pick = np.random.choice(np.arange(len(self.inds)), samples, replace=False)
+            self.inds = self.inds[pick]
+
         self.num_images = len(self.inds)
 
     def __getitem__(self, index):

@@ -9,14 +9,18 @@ class AttentionDecoder(nn.Module):
         self._init_params()
 
     def  _create_network(self, gated):
-        self.to_hidden = nn.Conv2d(512, 256, kernel_size=3, padding=1)
+        self.to_hidden = nn.Sequential(
+            nn.Conv2d(512, 64, kernel_size=3, padding=1),
+            nn.BatchNorm2d(64),
+            nn.ReLU(inplace=True)
+        )
 
-        self.attn1 = EdgeAttentionModule(256, 128, gated)
-        self.attn2 = EdgeAttentionModule(128, 64, gated)
-        self.attn3 = EdgeAttentionModule(64, 64, gated)
+        self.attn1 = EdgeAttentionModule(64, 32, gated)
+        self.attn2 = EdgeAttentionModule(32, 16, gated)
+        self.attn3 = EdgeAttentionModule(16, 16, gated)
 
-        self.conv_feat = nn.Conv2d(64, 1, kernel_size=3, padding=1)
-        self.conv_edge = nn.Conv2d(64, 1, kernel_size=3, padding=1)
+        self.conv_feat = nn.Conv2d(16, 1, kernel_size=3, padding=1)
+        self.conv_edge = nn.Conv2d(16, 1, kernel_size=3, padding=1)
     
 
     def forward(self, feat):
