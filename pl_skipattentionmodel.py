@@ -12,7 +12,7 @@ class SkipAttentionModel(pl.LightningModule):
         super().__init__()
 
         self.hyper_params = hyper_params
-        self.model = SkipAttentionNet()
+        self.model = SkipAttentionNet(hyper_params)
         
 
     def forward(self, batch):

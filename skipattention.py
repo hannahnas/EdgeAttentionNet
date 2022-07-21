@@ -61,11 +61,11 @@ class SkipEncoder(nn.Module):
 
 
 class SkipAttentionNet(nn.Module):
-    def __init__(self, gated_depth_encoder=False):
+    def __init__(self, hyper_parameters):
         super().__init__()
         self.edge_encoder = SkipEncoder(in_channels=1)
-        self.rgb_encoder = SkipEncoder(in_channels=3)
-        self.depth_encoder = SkipEncoder(in_channels=1, gated=gated_depth_encoder)
+        self.rgb_encoder = SkipEncoder(in_channels=3, gated = hyper_parameters['gated'])
+        self.depth_encoder = SkipEncoder(in_channels=1, gated=hyper_parameters['gated'])
 
         self._create_network(out_channels=1)
         self._init_params()

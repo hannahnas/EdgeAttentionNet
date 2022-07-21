@@ -10,3 +10,5 @@ skipattn_model_checkpoints/
 skipattn_checkpoints/
 
 edgeattention_checkpoints/
+
+results/

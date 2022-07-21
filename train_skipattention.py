@@ -75,6 +75,12 @@ class VisulizationCallback(pl.Callback):
 def train(hyper_params, train_loader, val_loader, test_loader, train_set, val_set):
     conv = 'Gated' if hyper_params['gated'] else ''
 
+    early_stopping = EarlyStopping(
+        monitor="val_l1_depth_loss",
+        min_delta=0.001,
+        patience=3,
+    )
+
     trainer = pl.Trainer(default_root_dir=os.path.join(CHECKPOINT_PATH, f"{conv}{hyper_params['model name']}_epochs{hyper_params['epochs']}_batch{hyper_params['batch size']}_lr{hyper_params['lr']}"),
                          gpus=1 if str(device).startswith("cuda") else 0,
                          max_epochs=hyper_params['epochs'],
@@ -84,7 +90,8 @@ def train(hyper_params, train_loader, val_loader, test_loader, train_set, val_se
                                         train_set, 8, device), 'train', every_n_epochs=1),
                                     VisulizationCallback(get_images(
                                         val_set, 8, device), 'validation', every_n_epochs=1),
-                                    LearningRateMonitor("epoch")])
+                                    LearningRateMonitor("epoch"),
+                                    early_stopping])
     # Optional logging argument that we don't need
     trainer.logger._default_hp_metric = None
 

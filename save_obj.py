@@ -34,7 +34,7 @@ def write_obj(color, depth, mask, file_name):
     pcd.transform([[1, 0, 0, 0], [0, -1, 0, 0],
                    [0, 0, -1, 0], [0, 0, 0, 1]])
 
-    o3d.io.write_point_cloud('test.xyzrgb', pcd)
+    o3d.io.write_point_cloud('test.ply', pcd)
     # o3d.visualization.draw_geometries([pcd])
     # Up until here works
 

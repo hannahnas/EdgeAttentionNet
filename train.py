@@ -82,7 +82,7 @@ def train(hyper_params, train_loader, val_loader, test_loader, train_set, val_se
     early_stopping = EarlyStopping(
         monitor="val_l1_depth_loss",
         min_delta=0.001,
-        patience=5,
+        patience=3,
     )
 
     trainer = pl.Trainer(default_root_dir=os.path.join(CHECKPOINT_PATH, f"{conv}{hyper_params['model name']}_epochs{hyper_params['epochs']}_batch{hyper_params['batch size']}_lr{hyper_params['lr']}"),

@@ -21,6 +21,8 @@ class InpaintDataset(Dataset):
         elif split == 'val' or 'test':
             file = f'{data_folder}/filtered_{split}_inds_3000.txt'
 
+        # file = f'{data_folder}/{split}_inds.txt'
+
         self.inds = np.loadtxt(file, dtype=str)
 
         self.num_images = len(self.inds)
