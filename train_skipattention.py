@@ -13,13 +13,13 @@ from InpaintDataset import InpaintDataset
 from matplotlib import cm
 import numpy as np
 from torch.utils.tensorboard import SummaryWriter
-from pl_model import EdgeAttentionModel
+from pl_skipattentionmodel import SkipAttentionModel
 import matplotlib.pyplot as plt
 
 
 device = torch.device(
     "cuda:0") if torch.cuda.is_available() else torch.device("cpu")
-CHECKPOINT_PATH = './edgeattention_checkpoints'
+CHECKPOINT_PATH = './skipattn_checkpoints'
 
 
 class VisulizationCallback(pl.Callback):
@@ -35,20 +35,16 @@ class VisulizationCallback(pl.Callback):
             # Do image completion
             with torch.no_grad():
                 pl_module.eval()
-                reconst_depth, reconst_edges = pl_module(self.input)
-                reconst_edges = torch.nn.functional.softmax(reconst_edges, dim=2) # > 0.8
-                reconst_edges = reconst_edges[:, 0] < reconst_edges[:, 1]
-                reconst_edges = reconst_edges.unsqueeze(1)
+                reconst_depth = pl_module(self.input)
                 pl_module.train()
-            
             # RGB reconstructions
+
             mask = self.input['mask']
             depth = self.input['depth']
             reconst_depth = mask * reconst_depth + (1 - mask) * depth
             rgb_input = self.input['rgb']
             mask = self.input['mask'].repeat(1, 3, 1, 1)
             edge = self.input['edges'].repeat(1, 3, 1, 1)
-            reconst_edges = reconst_edges.repeat(1, 3, 1, 1)
 
             # DEPTH reconstructions
             
@@ -68,9 +64,9 @@ class VisulizationCallback(pl.Callback):
             reconst_depth_map = reconst_depth_map[:, :3, :, :]
 
             results = torch.stack(
-                [rgb_input, depth_map_input, reconst_edges, edge, reconst_depth_map, depth_gt], dim=1).flatten(0, 1)
+                [rgb_input, depth_map_input, edge, reconst_depth_map, depth_gt], dim=1).flatten(0, 1)
             results_grid = torchvision.utils.make_grid(
-                results, nrow=6, value_range=(0, 1))
+                results, nrow=5, value_range=(0, 1))
             trainer.logger.experiment.add_image(
                 f'{self.set} reconstructions', results_grid, global_step=trainer.global_step)
 
@@ -79,27 +75,20 @@ class VisulizationCallback(pl.Callback):
 def train(hyper_params, train_loader, val_loader, test_loader, train_set, val_set):
     conv = 'Gated' if hyper_params['gated'] else ''
 
-    early_stopping = EarlyStopping(
-        monitor="val_l1_depth_loss",
-        min_delta=0.001,
-        patience=5,
-    )
-
     trainer = pl.Trainer(default_root_dir=os.path.join(CHECKPOINT_PATH, f"{conv}{hyper_params['model name']}_epochs{hyper_params['epochs']}_batch{hyper_params['batch size']}_lr{hyper_params['lr']}"),
                          gpus=1 if str(device).startswith("cuda") else 0,
                          max_epochs=hyper_params['epochs'],
                          log_every_n_steps=1,
-                         callbacks=[ModelCheckpoint(save_weights_only=True, mode="min", monitor="total_val_loss"),
+                         callbacks=[ModelCheckpoint(save_weights_only=True, mode="min", monitor="val_l1_depth_loss"),
                                     VisulizationCallback(get_images(
                                         train_set, 8, device), 'train', every_n_epochs=1),
                                     VisulizationCallback(get_images(
                                         val_set, 8, device), 'validation', every_n_epochs=1),
-                                    LearningRateMonitor("epoch"),\
-                                    early_stopping])
+                                    LearningRateMonitor("epoch")])
     # Optional logging argument that we don't need
     trainer.logger._default_hp_metric = None
 
-    model = EdgeAttentionModel(hyper_params)
+    model = SkipAttentionModel(hyper_params)
 
     trainer.fit(model, train_loader, val_loader)
 
@@ -152,6 +141,7 @@ def run_experiment(hyper_params):
     return model, result
 
 if __name__ == '__main__':
+    import pickle
     # command line arguments
     import sys
     import pickle
@@ -163,14 +153,13 @@ if __name__ == '__main__':
         GATED = True
         BATCH = 8
 
+
     hyper_params = {
-        'model name': 'EdgeAttention',
+        'model name': 'SkipAttention',
         'gated': GATED,
         'batch size': BATCH,
-        'epochs': 50,
-        'lr': 1e-4,
-        'lambda edge': 0.4,
-        'lambda depth': 0.8
+        'epochs': 20,
+        'lr': 1e-4, #/ (4*256*256)
     }
 
     # train
@@ -179,3 +168,8 @@ if __name__ == '__main__':
     gated = 'gated' if GATED else ''
     with open(f"./results/{gated}{hyper_params['model name']}epochs{hyper_params['epochs']}.csv", "wb") as f:
         pickle.dump(result, f)
+
+    # save validation predictions in obj files
+    # alle hyperparams as command line arguments
+
+    pass

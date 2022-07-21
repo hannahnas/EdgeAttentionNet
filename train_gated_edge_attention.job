@@ -1,0 +1,18 @@
+#!/bin/bash
+
+#SBATCH -p gpu_shared
+#SBATCH --gpus=1
+#SBATCH --cpus-per-task=5
+#SBATCH --job-name=GatedEdgeAttn
+#SBATCH --ntasks=1
+#SBATCH --time=05:00:00
+#SBATCH --output=./job_logs/GatedEdgeAttn_%A.out
+
+
+module purge
+module load 2021
+module load Anaconda3/2021.05
+
+source activate inpaint_env
+
+python train.py 1 8

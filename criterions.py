@@ -26,6 +26,22 @@ def cross_entropy_loss2d(inputs, targets, cuda=False, balance=1.1):
         weights = weights.cuda()
     weights = Variable(weights)
     inputs = torch.sigmoid(inputs)
-    loss = nn.BCELoss(weights, size_average=False)(inputs, targets)
+    loss = nn.BCELoss(weights, reduction='mean')(inputs, targets)
+
+    return loss
+
+
+def re_Dice_Loss(inputs, targets, cuda=False, balance=1.1):
+    n, c, h, w = inputs.size()
+    smooth=1
+    inputs = torch.sigmoid(inputs)  # F.sigmoid(inputs)
+
+    input_flat=inputs.view(-1)
+    target_flat=targets.view(-1)
+
+    intersecion=input_flat*target_flat
+    unionsection=input_flat.pow(2).sum()+target_flat.pow(2).sum()+smooth
+    loss=unionsection/(2*intersecion.sum()+smooth)
+    loss=loss.sum()
 
     return loss

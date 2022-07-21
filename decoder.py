@@ -20,7 +20,7 @@ class AttentionDecoder(nn.Module):
         self.attn3 = EdgeAttentionModule(16, 16, gated)
 
         self.conv_feat = nn.Conv2d(16, 1, kernel_size=3, padding=1)
-        self.conv_edge = nn.Conv2d(16, 1, kernel_size=3, padding=1)
+        self.conv_edge = nn.Conv2d(16, 2, kernel_size=3, padding=1)
     
 
     def forward(self, feat):
@@ -30,8 +30,9 @@ class AttentionDecoder(nn.Module):
         feat, edges = self.attn2(feat, edges)
         feat, edges = self.attn3(feat, edges)
 
+
         feat = self.conv_feat(feat)
-        edges = self.conv_feat(edges)
+        edges = self.conv_edge(edges)
 
         return feat, edges
 
@@ -43,3 +44,4 @@ class AttentionDecoder(nn.Module):
             elif isinstance(m, nn.BatchNorm2d):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
+

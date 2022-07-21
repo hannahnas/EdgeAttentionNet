@@ -4,3 +4,9 @@ model_checkpoints/
 __pycache__/
 
 test_model_checkpoints/
+
+skipattn_model_checkpoints/
+
+skipattn_checkpoints/
+
+edgeattention_checkpoints/

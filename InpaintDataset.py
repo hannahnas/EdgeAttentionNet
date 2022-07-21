@@ -10,17 +10,18 @@ import matplotlib.pyplot as plt
 class InpaintDataset(Dataset):
     def __init__(
         self,
-        data_folder='/home/hannah/Documents/Thesis/data/preprocessed_structured3D',
-        # data_folder = '/project/pjsminha/data/preprocessed_structured3D',
-        split = 'train',
-        samples=16
+        # data_folder='/home/hannah/Documents/Thesis/data/preprocessed_structured3D',
+        data_folder = '/project/pjsminha/data/preprocessed_structured3D',
+        split = 'train'
     ):
         self.data_folder = data_folder
         self.split = split
-        self.inds = np.loadtxt(f'{data_folder}/{split}_inds.txt', dtype=str)
         if split == 'train':
-            pick = np.random.choice(np.arange(len(self.inds)), samples, replace=False)
-            self.inds = self.inds[pick]
+            file = f'{data_folder}/filtered_{split}_inds.txt'
+        elif split == 'val' or 'test':
+            file = f'{data_folder}/filtered_{split}_inds_3000.txt'
+
+        self.inds = np.loadtxt(file, dtype=str)
 
         self.num_images = len(self.inds)
 
@@ -32,15 +33,15 @@ class InpaintDataset(Dataset):
         # i = str(i).zfill(6)
 
         rgb_path = f'{self.data_folder}/{self.split}/color/{i}_image.npy'
-        rgb = np.load(rgb_path)[:,:,:3] #/ 255
+        rgb = np.load(rgb_path)[16:224,16:224,:3] #/ 255
 
         depth_path = f'{self.data_folder}/{self.split}/depth/{i}_depth.npy'
-        depth = np.load(depth_path)
+        depth = np.load(depth_path)[16:224, 16:224] # filter outline edge
 
-        mask = self.generate_masks(256)
+        mask = self.generate_masks(208)
 
         edges_path = f'{self.data_folder}/{self.split}/gray_edges/{i}_gray_edges.npy'
-        edges = np.load(edges_path)
+        edges = np.load(edges_path)[16:224, 16:224] # filter outline edge
 
 
         img_object = {
@@ -85,11 +86,12 @@ if __name__ == '__main__':
     loader = DataLoader(dataset, batch_size=4, shuffle=True)
 
     for i, batch in enumerate(loader):
-        print(batch['rgb'].max())
-        print(batch['rgb'].shape)
-        print(batch['depth'].max())
-        print(batch['mask'].max())
-        print(batch['edges'].max())
+        print('rgb')
+        print('min: ', batch['rgb'].min(), 'max:  ', batch['rgb'].max(), 'shape: ', batch['rgb'].shape)
+        print('depth')
+        print('min: ', batch['depth'].min(), 'depth: ', batch['depth'].max(), 'shape: ', batch['depth'].shape)
+        print(batch['mask'].shape)
+        print(batch['edges'].shape)
 
         # fig, ax = plt.subplots(1, 4)
         # ax[0].imshow(batch['depth'][0, 0], cmap='viridis')

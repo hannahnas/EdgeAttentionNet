@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from encoder import ResNetEncoder
 from decoder import AttentionDecoder
 from criterions import cross_entropy_loss2d
-# from evaluation import compute_eval_measures
+from evaluation import compute_eval_measures
 
 class EdgeAttentionModel(pl.LightningModule):
     def __init__(self, hyper_params):
@@ -18,6 +18,9 @@ class EdgeAttentionModel(pl.LightningModule):
         self.depth_encoder = ResNetEncoder(in_channels=1, gated=gated)
 
         self.decoder = AttentionDecoder()
+
+        weights = torch.tensor([1., 1. / 0.03720825]).to('cuda:0')
+        self.cross_entropy_fn = torch.nn.CrossEntropyLoss(weight=weights)
 
 
     def forward(self, batch):
@@ -37,7 +40,7 @@ class EdgeAttentionModel(pl.LightningModule):
     
     def _get_losses(self, batch):
         depth_gt = batch['depth']
-        edges_gt = batch['edges']
+        edges_gt = torch.cat([batch['edges'].logical_not(), batch['edges']], dim=1)
         mask = batch['mask']
 
         depth_pred, edges_pred = self.forward(batch)
@@ -47,8 +50,11 @@ class EdgeAttentionModel(pl.LightningModule):
         # weight = neg_samples / pos_samples
         # print(weight)
 
-        l1_loss = self.hyper_params['lambda depth'] * F.l1_loss(depth_pred * mask, depth_gt * mask) / mask.sum()
-        bce_loss =  self.hyper_params['lambda edge'] * cross_entropy_loss2d(edges_pred, edges_gt, cuda=True)
+        l1_loss = self.hyper_params['lambda depth'] * F.l1_loss(depth_pred * mask, depth_gt * mask, reduction='mean') / mask.sum()
+        bce_loss = self.hyper_params['lambda edge'] * self.cross_entropy_fn(edges_pred, edges_gt)
+
+        
+        # bce_loss =  self.hyper_params['lambda edge'] * cross_entropy_loss2d(edges_pred, edges_gt, cuda=True)
         # bce_loss = self.hyper_params['lambda edge'] * F.binary_cross_entropy_with_logits(edges_pred, edges_gt, reduction='mean', pos_weight=torch.Tensor([weight]).to('cuda'))
 
         return l1_loss, bce_loss
@@ -79,3 +85,11 @@ class EdgeAttentionModel(pl.LightningModule):
         l1_loss, bce_loss = self._get_losses(batch)
         self.log('test_l1_depth_loss', l1_loss)
         self.log('train_bce_edge_loss', bce_loss)
+
+        depth_pred, _ = self.forward(batch)
+        abs_rel, _, rmse, _, a1, a2, a3, _ = compute_eval_measures(batch['depth'], depth_pred, batch['mask'])
+        self.log('abs rel', abs_rel)
+        self.log('delta 1.25', a1)
+        self.log('delta 1.25^2', a2)
+        self.log('delta 1.25^3', a3)
+        self.log('rmse', rmse)
